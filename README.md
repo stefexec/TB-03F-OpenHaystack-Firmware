@@ -1,4 +1,4 @@
-# 🔐 tlsr825x_FindMy  
+# 🔐 TB-03F-OpenHaystack-Firmware
 **Openhaystack firmware for the Telink TLSR8253 MCU / TB-03F**
 
 This project is a custom firmware implementation that brings OpenHaystack support to the TLSR825x chip.
