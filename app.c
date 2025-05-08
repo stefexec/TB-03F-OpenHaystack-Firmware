@@ -155,7 +155,7 @@ int update_battery_status(void) {
   //at_print("Entering update_battery_status()\r\n");
 
   // Always read battery on first boot, otherwise check counter
-  if(!first_boot && ++battery_update_counter < 672) {
+  if(!first_boot && ++battery_update_counter < 10080) {
       //sprintf(debug_buf, "Skip battery update. Counter: %d\r\n", battery_update_counter);
       //at_print(debug_buf);
       return 0;
