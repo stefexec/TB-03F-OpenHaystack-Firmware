@@ -52,6 +52,7 @@ static u8 public_keys[3][28] = {
 __attribute__((section(".retention_data"))) static u8 current_key_index = 0;
 __attribute__((section(".retention_data"))) static u8 stored_battery_status = 0;
 __attribute__((section(".retention_data"))) static u16 battery_update_counter = 0; 
+__attribute__((section(".retention_data"))) static u16 ble_update_counter = 0;
 
 void derive_mac_from_key(const u8 *key, u8 *mac_addr) {
   mac_addr[5] = key[0] | 0xc0;
@@ -66,42 +67,42 @@ _attribute_ram_code_ void read_battery_voltage(void)
 {
   if(!adc_hw_initialized) {
       // Initialize ADC for battery reading
-      gpio_set_output_en(GPIO_VBAT_DETECT, 1);
-      gpio_write(GPIO_VBAT_DETECT, 1);
+    gpio_set_output_en(GPIO_VBAT_DETECT, 1);
+    gpio_write(GPIO_VBAT_DETECT, 1);
 
-      /******set adc sample clk as 4MHz******/
-      adc_set_sample_clk(5); //adc sample clk= 24M/(1+5)=4M
+    /******set adc sample clk as 4MHz******/
+    adc_set_sample_clk(5); //adc sample clk= 24M/(1+5)=4M
 
-      /******set adc L R channel Gain Stage bias current trimming******/
-      adc_set_left_right_gain_bias(GAIN_STAGE_BIAS_PER100, GAIN_STAGE_BIAS_PER100);
+    /******set adc L R channel Gain Stage bias current trimming******/
+    adc_set_left_right_gain_bias(GAIN_STAGE_BIAS_PER100, GAIN_STAGE_BIAS_PER100);
 
-      //set misc channel en,  and adc state machine state cnt 2( "set" stage and "capture" state for misc channel)
-      adc_set_chn_enable_and_max_state_cnt(ADC_MISC_CHN, 2);  	//set total length for sampling state machine and channel
+    //set misc channel en,  and adc state machine state cnt 2( "set" stage and "capture" state for misc channel)
+    adc_set_chn_enable_and_max_state_cnt(ADC_MISC_CHN, 2);  	//set total length for sampling state machine and channel
 
-      //set "capture state" length for misc channel: 240
-      //set "set state" length for misc channel: 10
-      //adc state machine  period  = 24M/250 = 96K, T = 10.4 uS
-      adc_set_state_length(240, 0, 10);  	//set R_max_mc,R_max_c,R_max_s
+    //set "capture state" length for misc channel: 240
+    //set "set state" length for misc channel: 10
+    //adc state machine  period  = 24M/250 = 96K, T = 10.4 uS
+    adc_set_state_length(240, 0, 10);  	//set R_max_mc,R_max_c,R_max_s
 
-      //set misc channel use differential_mode,
-      //set misc channel resolution 14 bit,  misc channel differential mode
-      //notice that: in differential_mode MSB is sign bit, rest are data,  here BIT(13) is sign bit
-      analog_write(anareg_adc_res_m, RES14 | FLD_ADC_EN_DIFF_CHN_M);
-      adc_set_ain_chn_misc(ADC_INPUT_PCHN, GND);
+    //set misc channel use differential_mode,
+    //set misc channel resolution 14 bit,  misc channel differential mode
+    //notice that: in differential_mode MSB is sign bit, rest are data,  here BIT(13) is sign bit
+    analog_write(anareg_adc_res_m, RES14 | FLD_ADC_EN_DIFF_CHN_M);
+    adc_set_ain_chn_misc(ADC_INPUT_PCHN, GND);
 
-      //set misc channel vref 1.2V
-      adc_set_ref_voltage(ADC_MISC_CHN, ADC_VREF_1P2V);
+    //set misc channel vref 1.2V
+    adc_set_ref_voltage(ADC_MISC_CHN, ADC_VREF_1P2V);
 
-      //set misc t_sample 6 cycle of adc clock:  6 * 1/4M
-      adc_set_tsample_cycle_chn_misc(SAMPLING_CYCLES_6);  	//Number of ADC clock cycles in sampling phase
+    //set misc t_sample 6 cycle of adc clock:  6 * 1/4M
+    adc_set_tsample_cycle_chn_misc(SAMPLING_CYCLES_6);  	//Number of ADC clock cycles in sampling phase
 
-      //set Analog input pre-scaling 1/8
-      adc_set_ain_pre_scaler(ADC_PRESCALER_1F8);
+    //set Analog input pre-scaling 1/8
+    adc_set_ain_pre_scaler(ADC_PRESCALER_1F8);
 
-      /******power on sar adc********/
-      //note: this setting must be set after all other settings
-      adc_power_on_sar_adc(1);
-      adc_hw_initialized = 1;
+    /******power on sar adc********/
+    //note: this setting must be set after all other settings
+    adc_power_on_sar_adc(1);
+    adc_hw_initialized = 1;
   }
 
   adc_reset_adc_module();
@@ -111,7 +112,7 @@ _attribute_ram_code_ void read_battery_voltage(void)
   u32 adc_result;
 
   for(int i=0; i<ADC_SAMPLE_NUM; i++) {
-      adc_dat_buf[i] = 0;
+    adc_dat_buf[i] = 0;
   }
   while(!clock_time_exceed(t0, 25));
 
@@ -119,13 +120,13 @@ _attribute_ram_code_ void read_battery_voltage(void)
   dfifo_enable_dfifo2();
 
   for(int i=0; i<ADC_SAMPLE_NUM; i++) {
-      while(!adc_dat_buf[i]);
+    while(!adc_dat_buf[i]);
 
-      if(adc_dat_buf[i] & BIT(13)) {
-          adc_sample[i] = 0;
-      } else {
-          adc_sample[i] = ((u16)adc_dat_buf[i] & 0x1FFF);
-      }
+    if(adc_dat_buf[i] & BIT(13)) {
+        adc_sample[i] = 0;
+    } else {
+        adc_sample[i] = ((u16)adc_dat_buf[i] & 0x1FFF);
+    }
   }
 
   dfifo_disable_dfifo2();
@@ -149,7 +150,7 @@ int update_battery_status(void) {
   //at_print("UART reinitialized.\r\n");
 
   __attribute__((section(".retention_data"))) static u8 first_boot = 1;
-  char debug_buf[64];  // Buffer for formatted debug strings
+  //char debug_buf[64];  // Buffer for formatted debug strings
 
   //at_print("Entering update_battery_status()\r\n");
 
@@ -215,15 +216,15 @@ void reinit_ble_with_key(u8 key_index) {
                    ADV_FP_NONE);
 
   u8 tbl_advData[] = {
-      0x1e, 
-      0xff, 
-      0x4c, 0x00, 
-      0x12, 0x19, 
-      0x00,
-      0x11, 0x22, 0x33, 0x22, 0x11, 0x22, 0x33, 0x22,
-      0x11, 0x22, 0x33, 0x22, 0x11, 0x22, 0x33, 0x22,
-      0x11, 0x22, 0x33, 0x22, 0x11, 0x22,
-      0x00, 0x00,
+    0x1e, 
+    0xff, 
+    0x4c, 0x00, 
+    0x12, 0x19, 
+    0x00,
+    0x11, 0x22, 0x33, 0x22, 0x11, 0x22, 0x33, 0x22,
+    0x11, 0x22, 0x33, 0x22, 0x11, 0x22, 0x33, 0x22,
+    0x11, 0x22, 0x33, 0x22, 0x11, 0x22,
+    0x00, 0x00,
   };
   memcpy(&tbl_advData[7], &public_keys[key_index][6], 22);
   tbl_advData[29] = public_keys[key_index][0] >> 6;
@@ -239,11 +240,17 @@ void reinit_ble_with_key(u8 key_index) {
 int key_rotation_callback(void) {
   // Reinitialize UART to ensure it's working
   //app_uart_init();
+  update_battery_status();
+
+  if(++ble_update_counter < 15) {
+      return 0;
+  }
+
+  ble_update_counter = 0;
 
   //at_print("Key rotation triggered\r\n");
   current_key_index = (current_key_index + 1) % 3;
   reinit_ble_with_key(current_key_index);
-  update_battery_status();
   return 0;
 }
 
@@ -305,14 +312,13 @@ void user_init_normal(void)
 	bls_ll_setAdvEnable(1);
 
 	blt_soft_timer_init();
-	blt_soft_timer_add(key_rotation_callback, 30 * 60 * 1000 * 1000); // 30 minutes
-
+  blt_soft_timer_add(key_rotation_callback, (2 * 60 * 1000 * 1000)); // 2 minutes
 	//at_print("Normal\r\n");
 }
 
 _attribute_ram_code_ void user_init_deepRetn(void)
 {
-    //app_uart_init();
+  //app_uart_init();
     
 	blc_ll_initBasicMCU();   //mandatory
 	rf_set_power_level_index (MY_RF_POWER_INDEX);
