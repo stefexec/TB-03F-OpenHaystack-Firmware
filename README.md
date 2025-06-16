@@ -7,14 +7,11 @@ This project is a custom firmware implementation that brings OpenHaystack suppor
 
 ## ✨ Features
 
-- ✅ **Apple FindMy Network Support** 
-  Seamlessly integrates with Apple's FindMy ecosystem for secure location sharing.
-
 - 🔄 **Rotating Public Keys** *(NEW)* 
-  Implements rotating identity keys for enhanced user privacy and FindMy compliance.
+  Implements rotating identity keys for enhanced user privacy making it harder for thieves to spot.
 
 - 🔋 **Battery Status Reporting** *(NEW)* 
-  Reports battery voltage over UART, complete with status flags (Low, Medium, Full, Critical) and debug logging.
+  Reports battery voltage over UART, complete with status flags (Low, Medium, Full, Critical)
 
 ---
 
